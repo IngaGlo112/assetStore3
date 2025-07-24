@@ -1,0 +1,750 @@
+[[!-- Note that this is the metaphactory version of the ontology admin template. --]]
+
+<style type='text/css'>
+  .table-custom-row {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .card {
+    border-radius: 10px
+  }
+
+  .catalogueActions {
+    position: relative;
+    right: 250px;
+  }
+  .catalogueActions button.btnCreateOntology {
+    margin-left: 10px;
+  }
+
+  .ontologyActions .moreActions button {
+    padding: 0;
+    color: var(--mp-color-dark-500);
+  }
+
+  .ontologyActions .moreActions button:hover {
+    text-decoration: none;
+  }
+
+  .largeDialog .modal-dialog {
+    max-width: 1200px;
+  }
+  .printDialog .mp-print {
+    min-height: 600px;
+  }
+
+  .historyDialog .modal-body {
+    padding: 0;
+    min-height: 400px;
+  }
+
+  .rdfEditorDialog .CodeMirror {
+    height: 500px !important;
+  }
+  
+  .table-no-result {
+    color: var(--mp-color-dark-400);
+    font-weight: 700;
+    padding-left: 16px;
+  }
+
+  .form-group, .SemanticSearchFacet--horizontal, .SemanticSearchFacetBreadcrumbs--facetLabel, .SemanticSearchFacetBreadcrumbs--facetValue {
+    margin-bottom: 16px;
+  }
+
+  .DataTable--table-grid-layout {
+    flex-wrap: nowrap;
+  }
+
+  .ontologyTabs {
+    border: none;
+  }
+
+  .ontologyTabs .nav-link {
+    color: var(--mp-color-primary-500);
+    border: 1px solid var(--mp-color-primary-200);
+  }
+
+  .ontologyTabs .nav-item:first-child .nav-link {
+    border-radius: 4px 0px 0px 4px;
+  }
+
+  .ontologyTabs .nav-item:last-child .nav-link {
+    border-radius: 0px 4px 4px 0px;
+  }
+
+  .ontologyTabs .nav-link.active {
+    background: var(--mp-color-primary-100);
+    border: 1px solid var(--mp-color-primary-600);
+    color: var(--mp-color-primary-900);
+  }
+
+  .ontologyTabs .nav-link .bsTabCount {
+    color: var(--mp-color-primary-400);
+  }
+
+  .ontologyTabs .nav-link.active .bsTabCount {
+    color: var(--mp-color-primary-600);
+  }
+  .moreActionsToggle {
+    min-height: unset;
+    vertical-align: top;
+    display: flex;
+    align-items: center;
+  }
+  .moreActionsToggle.dropdown-toggle::after {
+    display: none;
+  }
+  .moreActions .dropdown-item.delete {
+    color: var(--mp-color-danger-500);
+  }
+  .moreActions .mp-rdf-graph-action {
+    color: inherit;
+  }
+  .gitVersioningDialog .modal-dialog {
+    max-width: 1200px;
+  }
+  .warning-revision {
+    color: var(--mp-color-warning-700);
+  }
+  .moreActions .statusIcon {
+    width: 14px;
+    height: 14px;
+    font-size: 16px;
+    margin-top: 1px;
+  }
+  .moreActions .error {
+    color: var(--mp-color-danger-500);
+  }
+  .moreActions .warning {
+    color: var(--mp-color-warning-500);
+  }
+  .moreActions .adjust {
+    color: var(--mp-color-info-500);
+  }
+  .moreActions .dropdown-item {
+    display: flex;
+    gap: 4px;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .exportDropdown > a::after, .moreDropdown > a::after {
+    height: 100%;
+    align-self: center;
+  }
+  .facetGroup > div {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .facetGroup .SemanticSearchFacet--horizontal {
+    width: auto;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+  .ontologyActions .assetStatus {
+    margin-bottom: 2px;
+  }
+  .replaceOntology .modal-dialog {
+    --bs-modal-width: 552px;
+  }
+  .replaceOntology .icon-cloud {
+    color: var(--mp-color-dark-200);
+    font-size: 48px;
+  }
+  .replaceOntology .ErrorPresenter--firstLine {
+    font-weight: normal;
+  }
+</style>
+
+[[#*inline "count"]]
+  <semantic-query
+                  query='
+										SELECT (COUNT(DISTINCT *) as ?count) WHERE{ GRAPH ?g { <{{subject.value}}> a owl:Ontology. [[pattern]] FILTER(!isBlank(?item)) .} }
+									'
+                  template='{{> itemCounts}}'
+  >
+    <template id='itemCounts'>
+      
+        <span class="badge badge-secondary" style='margin-right: 16px'>
+          {{number-format bindings.0.count.value style="decimal" locale="en"}}&nbsp;[[label]]{{#if (cond-neq bindings.0.count.value "1")}}
+            {{#if (cond-eq "[[label]]" "class")}}es{{else}}s{{/if}}          
+          {{/if}}
+        </span>
+    
+    </template>
+  </semantic-query>
+[[/inline]]
+
+<ol class="page-breadcrumb">
+  <li>
+    <mp-link title="Home" url="{{page-publicPath}}/">Home</mp-link>
+  </li>
+  <li><semantic-link title="Assets" iri='{{rdf-resolvePrefix "Assets:"}}'>Assets</semantic-link></li>
+  <li class="active">Ontologies</li>
+</ol>
+
+
+[[#if (hasPermission "ontologies:view:catalog")]]
+<mp-event-target-refresh id='ontologiesPageRefresh'>
+<mp-application-context type='modeling'>
+<div class="page">
+  <div class="page__header">
+    <div class='page__header-thumbnail'>
+      <h2><span class="material-symbols-outlined">lan</span></h2>
+    </div>
+    <div class='page__header-body'>
+      <div class='d-flex'>
+        <h2>Ontologies</h2>
+        {{> Platform:AssetFragments::AssetValidation type='ontology' label='Ontology'}}
+      </div>
+      
+      <p>This is the entry page to the ontology repository. Here you can create, import and manage ontologies.</p>
+    </div>
+
+    <div class="catalogueActions">
+      <div data-flex-layout="row top-stretch">
+        [[#if (hasPermission "ontologies:import:*")]]
+        <bs-dropdown-button id='ontology-import' title='Import' variant='outline-primary'>
+
+          <mp-overlay-dialog title="Import ontology" type="modal" bs-size="large" class="uploadOntology">
+            <mp-overlay-dialog-trigger><bs-dropdown-item>Import from local file</bs-dropdown-item></mp-overlay-dialog-trigger>
+            <mp-overlay-dialog-content>
+                {{> Assets:ImportOntologiesDialogContent}}
+            </mp-overlay-dialog-content>
+          </mp-overlay-dialog>
+
+          <mp-overlay-dialog title="Import from Git" type="modal" bs-size="large" class="importFromGit largeDialog">
+            <mp-overlay-dialog-trigger><bs-dropdown-item>Import from Git</bs-dropdown-item></mp-overlay-dialog-trigger>
+            <mp-overlay-dialog-content>
+               <mp-asset-import type="Ontology"></mp-asset-import>
+            </mp-overlay-dialog-content>
+          </mp-overlay-dialog>
+
+        </bs-dropdown-button>
+        [[/if]]
+
+        {{> ::CreateOntologyDialog createButtonClassName='btn btnCreateOntology btn-primary'}}
+      </div>
+    </div>
+
+  </div>
+  <div class='page__body'>
+    <div data-flex-layout='column top-stretch'></div>
+    {{> Platform:AssetFragments::editorialWorkflowAlert}}
+    <mp-event-target-refresh id='ontologiesTabRefresh'>
+      {{#> ::OntologiesSearch}}
+        {{> ::OntologiesSearchResult}}
+      {{/::OntologiesSearch}}
+    </mp-event-target-refresh>
+    <mp-event-proxy on-event-source='assetstatusform' on-event-type='Form.ResourceUpdated' proxy-event-type='Component.Refresh' proxy-targets='["ontologiesTabRefresh"]'></mp-event-proxy>
+  </div>
+</div>
+</mp-application-context>
+</mp-event-target-refresh>
+[[else]]
+<div class='page__body'>
+  <bs-alert variant="warning" style="margin-top: 50px;">
+    <strong>Warning!</strong><br/>
+    <p>You do not seem to have permissions for viewing & authoring ontologies. Please contact your administrator.</p>
+  </bs-alert>
+</div>
+[[/if]]
+
+
+<template-fragment id='CreateOntologyDialog' export='true' params='{
+  "createButtonClassName": {"type": "string"}
+}'>
+  [[#if (hasPermission "ontologies:create")]]
+    <mp-overlay-dialog title="Create ontology" type="modal" bs-size="large" class="createOntology">
+      <mp-overlay-dialog-trigger><button class="{{createButtonClassName}}">Create</button></mp-overlay-dialog-trigger>
+      <mp-overlay-dialog-content>
+        <div>
+          <mp-create-ontology post-action='redirect'
+            default-imports='{{~#> Platform:OntologySettings::default-imports~}}{{~/Platform:OntologySettings::default-imports~}}'
+            new-subject-template='{{~#> Platform:AssetSubjectTemplateUserOverrides::ontology~}}
+              {{baseIri}}{{title}}{{version}}
+            {{~/Platform:AssetSubjectTemplateUserOverrides::ontology~}}'
+            new-subject-template-settings='{{~#> Platform:AssetSubjectTemplateUserOverrides::ontologySettings~}}
+              {
+                "placeholders": {
+                  "title": [{
+                    "transform": "sanitize",
+                    "replaceCharacter": "-"
+                  }, {
+                    "transform": "lowerCase"
+                  }],
+                  "version": [{
+                    "transform": "none",
+                    "default": "/0.1"
+                  }]
+                }
+              }
+            {{~/Platform:AssetSubjectTemplateUserOverrides::ontologySettings~}}'
+            dependency-info-template='{{> ::dependency-info}}'>
+          </mp-create-ontology>
+        </div>
+      </mp-overlay-dialog-content>
+    </mp-overlay-dialog>
+  [[/if]]
+</template-fragment>
+
+<template-fragment id='OntologiesSearch' export='true' params='{
+  "searchInputClassname": {"type": "string", "required": false},
+  "searchLimit": {"type": "number", "required": false}
+}'>
+  <semantic-search id='ontologies' selector-mode='dropdown' optimizer='none'
+    limit='{{searchLimit}}'
+    [[#if (federationModelMember)]]
+      federation-members='["[[federationModelMember]]"]'
+    [[/if]]
+    categories='{
+      "<http://www.w3.org/2000/01/rdf-schema#Literal>": [{
+        "kind": "literal",
+        "queryPattern": "{
+          {
+            $subject ?__relation__ ?__literal__.
+          } UNION {
+            $subject ?__relation__ ?value.
+            FILTER(str(?__literal__) = str(?value)) .
+          }
+        }"
+      }]
+    }'
+    relations='{
+      "<http://purl.org/dc/terms/creator-placeholder>": [{
+        "kind": "literal",
+        "queryPattern": "{
+          $subject rdf:type owl:Ontology.
+          $subject <http://purl.org/dc/terms/creator> ?__literal__ .
+          GRAPH ?g {
+            $subject a owl:Ontology .
+            FILTER NOT EXISTS { ?vocabulary a skos:ConceptScheme }
+          }
+        }"
+      }],
+      "<http://purl.org/ontology/bibo/status>": [{
+        "kind": "resource",
+        "queryPattern": "
+          GRAPH ?g {
+            $subject a owl:Ontology .
+            FILTER NOT EXISTS { ?vocabulary a skos:ConceptScheme }
+          }
+          {
+            $subject ?__relation__ ?__value__ .
+          } UNION {
+            $subject a owl:Ontology .
+            FILTER (?__value__ = <http://purl.org/spar/pso/published>)
+            FILTER NOT EXISTS { $subject ?__relation__ ?noStatus . }
+          }
+        "
+      }],
+      "<http://www.metaphacts.com/ontologies/assets/hasReviewer>": [{
+        "kind": "resource",
+        "queryPattern": "
+          ?review <http://www.metaphacts.com/ontologies/assets/reviewOf> $subject .
+          ?review <http://www.metaphacts.com/ontologies/assets/hasReviewer> ?__value__ .
+          FILTER NOT EXISTS { ?review <http://www.metaphacts.com/ontologies/assets/hasDecision> ?decision }
+        "
+      }]
+    }'
+    search-profile='{
+      "categories": [
+        {"iri": "<http://www.w3.org/2002/07/owl#Ontology>", "label": "Ontology"},
+        {"iri": "<http://www.w3.org/2000/01/rdf-schema#Resource>", "label": "Resource"},
+        {"iri": "<http://www.w3.org/2000/01/rdf-schema#Literal>", "label": "Literal"}
+      ],
+      "relations": [
+        {
+          "iri": "<http://purl.org/dc/terms/creator-placeholder>",
+          "label": "Created by",
+          "hasDomain": "<http://www.w3.org/2002/07/owl#Ontology>",
+          "hasRange": "<http://www.w3.org/2000/01/rdf-schema#Literal>"
+        },
+        {
+          "iri": "<http://open-services.net/ns/core#modifiedBy>",
+          "label": "Last modified by",
+          "hasDomain": "<http://www.w3.org/2002/07/owl#Ontology>",
+          "hasRange": "<http://www.w3.org/2000/01/rdf-schema#Literal>"
+        }, {
+          "iri": "<http://purl.org/ontology/bibo/status>",
+          "label": "Status",
+          "hasDomain": "<http://www.w3.org/2002/07/owl#Ontology>",
+          "hasRange": "<http://www.w3.org/2000/01/rdf-schema#Resource>"
+        },
+        {
+          "iri": "<http://www.metaphacts.com/ontologies/assets/hasReviewer>",
+          "label": "Required reviewer",
+          "hasDomain": "<http://www.w3.org/2002/07/owl#Ontology>",
+          "hasRange": "<http://www.w3.org/2000/01/rdf-schema#Resource>",
+          "exclude": true
+        }
+      ]
+    }'>
+      <semantic-search-query-keyword
+        class='{{searchInputClassname}}'
+        domain='<http://www.w3.org/2002/07/owl#Ontology>'
+        placeholder='Search for ontologies by title or description'
+        min-search-term-length=2
+        query='
+          SELECT ?subject {
+            ?subject a owl:Ontology .
+            OPTIONAL {
+              ?subject <http://purl.org/ontology/bibo/status> ?status .
+            }
+            OPTIONAL {
+              ?subject ?property ?attribute .
+              FILTER (?property IN (<http://purl.org/dc/terms/title>, rdfs:label, <http://purl.org/dc/terms/description>) )
+              FILTER (isLiteral(?attribute))
+            }
+            FILTER regex(COALESCE(STR(?attribute), STR(?subject)), ?__token__, "i") .
+          }
+        '
+        default-query='
+          SELECT ?subject {
+            ?subject a owl:Ontology .
+            OPTIONAL {
+              ?subject <http://purl.org/ontology/bibo/status> ?status .
+            }
+          }
+        '
+      ></semantic-search-query-keyword>
+
+      <semantic-search-facet-store id='facet' default-selection='{
+        "http://purl.org/ontology/bibo/status": [
+          "http://purl.org/spar/pso/draft",
+          "http://purl.org/spar/pso/under-review",
+          "http://purl.org/spar/pso/accepted-for-publication",
+          "http://purl.org/spar/pso/published"
+        ]
+      }' relation-patterns='{
+        "<http://purl.org/ontology/bibo/status>": {
+          "kind": "resource",
+          "valuesQuery": "
+            SELECT ?value ?label (COUNT(DISTINCT $subject) AS ?count) WHERE {
+              VALUES (?value ?label) {
+                (<http://purl.org/spar/pso/draft> \"In development\")	
+                (<http://purl.org/spar/pso/under-review> \"In review\")	
+                (<http://purl.org/spar/pso/accepted-for-publication> \"Ready to be published\")
+                (<http://purl.org/spar/pso/published> \"Published\")
+                (<http://purl.org/spar/pso/archived> \"Archived\")
+              }
+              FILTER(?__facetRelationPattern__)
+            }
+            GROUP BY ?value ?label
+            ORDER BY ?label
+          "
+        }
+      }'
+      default-values='{
+        "http://purl.org/ontology/bibo/status": [
+          {
+            "value": "http://purl.org/spar/pso/draft",
+            "label": "In development"
+          },
+          {
+            "value": "http://purl.org/spar/pso/under-review",
+            "label": "In review"
+          },
+          {
+            "value": "http://purl.org/spar/pso/accepted-for-publication",
+            "label": "Ready to be published"
+          },
+          {
+            "value": "http://purl.org/spar/pso/published",
+            "label": "Published"
+          },
+          {
+            "value": "http://purl.org/spar/pso/archived",
+            "label": "Archived"
+          }
+        ]
+      }'></semantic-search-facet-store>
+      {{> @partial-block}}
+  </semantic-search>
+</template-fragment>
+
+<template-fragment id='OntologiesSearchResult'>
+  <div data-flex-layout="row stretch-stretch">
+    <semantic-search-result-group template="{{>t}}">
+      <template id="t">
+        <semantic-search-result-holder>
+          <div data-flex-self="md-full">
+            <semantic-search-result>
+              <div class='d-flex facetGroup'>
+                <semantic-search-facet-holder>
+                  <semantic-search-facet-group
+                    variant='horizontal'
+                    relation-settings='{
+                      "<http://purl.org/ontology/bibo/status>": {
+                        "showDefaultValuesControls": false,
+                        "valuesControlsTemplate": "{{> statusValuesHeader}}",
+                        "headerTemplate": "{{#if (cond-gt selectedItemCount 0)}}
+                          {{$relation.label.value}}
+                        {{else}}
+                          Any {{$relation.label.value}}
+                        {{/if}}",
+                        "sorting": "disabled"
+                      }
+                    }'
+                    relations-exclude='["http://www.metaphacts.com/ontologies/assets/hasReviewer"]'
+                    default-settings='{
+                      "headerTemplate": "{{#if (cond-gt selectedItemCount 0)}}
+                        {{$relation.label.value}}
+                      {{else}}
+                        {{$relation.label.value}} anyone
+                      {{/if}}"
+                    }'
+                  >
+                    <template id='statusValuesHeader'>
+                      <div class='mb-2'>
+                        <div class='mb-1' style='color: var(--mp-color-dark-400);'>Quick selector</div>
+                        <div class="d-flex gap-2">
+                          <mp-event-trigger type='SearchFacet.SetSelection' targets='["facet"]' data='{
+                            "selection": {
+                            "http://purl.org/ontology/bibo/status": [
+                              "http://purl.org/spar/pso/draft",
+                              "http://purl.org/spar/pso/under-review",
+                              "http://purl.org/spar/pso/accepted-for-publication"
+                            ]
+                          }}'>
+                            <button class="btn btn-sm btn-outline-secondary" title="Select ontologies in development, review and ready to be published">In progress</button>
+                          </mp-event-trigger>
+                          <mp-event-trigger type='SearchFacet.SetSelection' targets='["facet"]' data='{
+                            "remove": true,
+                            "selection": {"http://purl.org/ontology/bibo/status": [
+                              "http://purl.org/spar/pso/draft",
+                              "http://purl.org/spar/pso/under-review",
+                              "http://purl.org/spar/pso/accepted-for-publication",
+                              "http://purl.org/spar/pso/published",
+                              "http://purl.org/spar/pso/archived"
+                            ]}}'>
+                            <button class="btn btn-sm btn-outline-danger" title="Clear filter to view ontologies in all states">Clear</button>
+                          </mp-event-trigger>
+                        </div>
+                      </div>
+                    </template>
+                  </semantic-search-facet-group>
+                  <mp-event-target-template-render id='clearAllBtnTemplate' template='{{>t}}'>
+                    <template id='t'>
+                      {{#if (cond-neq hasSelection false)}}
+                        <mp-event-trigger id='clearAllBtn' targets='["facet"]' type="SearchFacet.SetSelection" data='{"selection": {}}'>
+                          <button class="btn btn-outline-danger facetClearBtn">Clear All</button>
+                        </mp-event-trigger>
+                      {{/if}}
+                      <mp-event-proxy
+                        on-event-source='clearAllBtn'
+                        on-event-type='SearchFacet.SetSelection'
+                        proxy-event-type='Component.TemplateUpdate'
+                        proxy-targets='["clearAllBtnTemplate"]'
+                        data='{"hasSelection": false}'>
+                      </mp-event-proxy>
+                      <mp-event-combine
+                        listen-events='[{"property": "facet", "type": "SearchFacet.SelectionChanged"}]'
+                        trigger-template='{{>t}}'
+                      >
+                        <template id='t'>
+                          {{#bind conjunctsWithSelection=(
+                            array-filter state.facet.conjuncts (func conjunct (cond-gt conjunct.disjuncts.length 0))
+                          )}}
+                            <mp-event-combine-emit
+                              event-type='Component.TemplateUpdate'
+                              targets='["clearAllBtnTemplate"]'
+                              data='{"hasSelection": "{{pass-value (cond-gt conjunctsWithSelection.length 0)}}"}'>
+                            </mp-event-combine-emit>
+                          {{/bind}}
+                        </template>
+                      </mp-event-combine>
+                    </template>
+                  </mp-event-target-template-render>
+                </semantic-search-facet-holder>
+              </div>
+
+              <semantic-search-facet-breadcrumbs value-template='{{> breadcrumbsTemplate}}'>
+                <template id='breadcrumbsTemplate'>
+                  {{#if (cond-eq relation.iri.value 'http://purl.org/ontology/bibo/status')}}
+                    {{> Platform:AssetFragments::assetStatusLabel status=value.value.iri.value}}
+                  {{else}}
+                    {{label}}
+                  {{/if}}
+                </template>
+              </semantic-search-facet-breadcrumbs>
+              {{#if (cond-not keyword)}}
+                {{> Assets:StatusTemplates::reviewRequiredAlert}}
+              {{/if}}
+              <semantic-table
+                id='field-results'
+                number-of-displayed-rows=10
+                query='SELECT DISTINCT
+                  ?subject
+                  (SAMPLE(?g) as ?graph)
+                  (SAMPLE(?v) as ?version)
+                  (SAMPLE(?lastPrior) as ?origin)
+                  ?status
+                WHERE {
+                  FILTER(isIRI(?subject)) .
+                  GRAPH ?g {
+                    ?subject a owl:Ontology .
+                    FILTER NOT EXISTS { ?vocabulary a skos:ConceptScheme }
+                    [[!-- FILTER ANNOTATION ONTOLOGIES --]]
+                    FILTER NOT EXISTS { ?nodeShape <http://datashapes.org/dash#applicableToClass> ?anyClass }                  
+                  }
+                  OPTIONAL { ?subject owl:versionInfo ?v }
+                  OPTIONAL { ?subject <http://purl.org/ontology/bibo/status> ?status }
+                  ?subject owl:priorVersion* ?lastPrior .
+                  FILTER NOT EXISTS { ?lastPrior owl:priorVersion ?noPrior . }
+                } GROUP BY ?subject ?status ORDER BY ?origin ?version LIMIT 100'
+                tuple-template='{{> ::OntologyTemplate
+                  metadataGraphIri=(string-of graph.value "_Metadata")
+                  isInReview=(cond-eq status.value "http://purl.org/spar/pso/under-review")
+                  isInDevelopment=(cond-eq status.value "http://purl.org/spar/pso/draft")
+                  isReadyToBePublished=(cond-eq status.value "http://purl.org/spar/pso/accepted-for-publication")
+                  isPublished=(cond-or (cond-eq status.value "http://purl.org/spar/pso/published") (cond-not status))
+                }}'
+                no-result-template='{{#if keyword}}No matches for “{{keyword}}”{{else}}No ontologies found. Import or create an Ontology using the provided actions.{{/if}}'
+                options='{"showFilter": false}'
+                key="{{keyword}}"
+              >
+              </semantic-table>
+            </semantic-search-result>
+          </div>
+        </semantic-search-result-holder>
+      </template>
+    </semantic-search-result-group>
+  </div>
+</template-fragment>
+
+<template-fragment id='OntologyTemplate'>
+  <mp-panel key='{{subject.value}}'>
+    <mp-panel-body>
+      <div data-flex-layout="column justify-justify" style="min-height: 150px;">
+        <div data-flex-layout="row top-spread">
+          <div class='row' data-flex-layout="row top-spread">
+            <div class='col-sm-8' data-flex-layout="column top-justify">
+              <p style='font-size:18px;' data-testid="ontology-template-title-{{subject.value}}">
+                {{> Platform:AssetFragments::assetTitle assetIri=subject.value keyword=keyword}}
+              </p>
+              <p class='linkWithCopy small'>
+                <semantic-link iri="{{subject.value}}" title="Navigate to resource"><span>{{subject.value}}</span></semantic-link>
+                <mp-copy-to-clipboard text='{{subject.value}}' title='Click to copy IRI'>
+                  <button class='btn btn-sm btn-icon btn-outline-secondary'>
+                    <span class="material-symbols-outlined">content_copy</span>
+                  </button>
+                </mp-copy-to-clipboard>
+              </p>
+              {{> Platform:AssetFragments::assetDescription assetIri=subject.value}}
+            </div>
+
+            <div class='col-sm-4 ontologyActions' data-flex-layout="row top-right">
+              <span class='d-flex me-3'>
+                {{> Platform:AssetFragments::assetStatusIcon status=status.value}}
+                {{> Platform:AssetFragments::assetVersion version=version.value}}
+              </span>
+              {{> Assets:OntologyContextMenu::ontologyContextMenu
+                ontologyIri=subject.value
+                graphIri=graph.value
+              }}
+            </div>
+          </div>
+        </div>
+
+        <div data-flex-layout="row bottom-left">
+          <div class='col-sm-8' style='display: flex; flex-direction: column; justify-content:end; gap:24px;'>
+            <div class="w-100">
+        
+              [[> count label='class' pattern='?item a owl:Class']]
+              [[> count label='attribute' pattern='?item a owl:DatatypeProperty']]
+              [[> count label='relation' pattern='?item a owl:ObjectProperty']]
+
+            </div>
+            <mp-asset-provenance resource-iri='{{subject.value}}' asset-iri='{{subject.value}}' asset-type='Ontology'></mp-asset-provenance>
+          </div>
+        </div>
+        {{#> Platform:AssetFragmentsOverrides::ontologyReviewPolicyConfiguration}}
+          {{#if reviewPolicyEnabled}}
+            <semantic-if query='{{#> Platform:AssetFragmentsOverrides::ontologyReviewPolicyQuery
+                ontologyIri=subject.value
+                graphIri=graph.value
+                metadataGraphIri=metadataGraphIri
+            }}{{/Platform:AssetFragmentsOverrides::ontologyReviewPolicyQuery}}' then='{{>t reviewPolicyFulfilled=true}}' else='{{>t reviewPolicyFulfilled=false}}'>
+              <template id='t'>
+                {{> Assets:StatusTemplates::asset-card-footer
+                  isInDevelopment=isInDevelopment
+                  isPublished=isPublished
+                  isReadyToBePublished=isReadyToBePublished
+                  graphIri=graph.value
+                  metadataGraphIri=metadataGraphIri
+                  assetIri=subject.value
+                  statusIri=status.value
+                  reviewPolicyFulfilled=reviewPolicyFulfilled
+                }}
+              </template>
+            </semantic-if>
+          {{else}}
+            {{> Assets:StatusTemplates::asset-card-footer
+              isInDevelopment=isInDevelopment
+              isPublished=isPublished
+              isReadyToBePublished=isReadyToBePublished
+              graphIri=graph.value
+              metadataGraphIri=metadataGraphIri
+              assetIri=subject.value
+              statusIri=status.value
+              reviewPolicyFulfilled=reviewPolicyFulfilled
+            }}
+          {{/if}}
+          
+        {{/Platform:AssetFragmentsOverrides::ontologyReviewPolicyConfiguration}}
+      </div>
+    </mp-panel-body>
+  </mp-panel>
+</template-fragment>
+
+<template-fragment id="dependency-info">
+
+  {{#if (cond-gt importedOntologies.length 0)}}
+      
+    <semantic-query 
+      query='PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        SELECT DISTINCT ?transitiveImportedOntology WHERE {
+          VALUES ?importedOntology { 
+            {{#each importedOntologies}}<{{this}}>{{/each}}
+          }
+          ?importedOntology owl:imports ?transitiveImportedOntology
+        }'
+    template='{{> tpl transitiveImportedOntologies=(array-map bindings (func b b.transitiveImportedOntology.value)) }}'
+>
+      <template id="tpl">
+        <bs-alert variant="info" class="alert-icon">
+          {{#if (cond-eq importedOntologies.length 1)}}
+            {{> Platform:AssetFragments::assetTitle assetIri=importedOntologies textOnly=true}} has a dependency on
+          {{else}}
+            {{importedOntologies.length}} ontologies have dependencies on
+          {{/if}}
+          {{#if (cond-eq transitiveImportedOntologies.length 1)}}
+            <b>{{> Platform:AssetFragments::assetTitle assetIri=transitiveImportedOntologies textOnly=true}}</b>
+          {{else}}
+            <mp-popover>
+              <mp-popover-trigger
+                placement="top"
+                trigger='["hover","focus"]'
+              >
+                <span><b>{{transitiveImportedOntologies.length}} ontologies</b></span>
+              </mp-popover-trigger>
+              <mp-popover-content>
+                <ul>
+                  {{#each transitiveImportedOntologies}}
+                    <li>{{> Platform:AssetFragments::assetTitle assetIri=this textOnly=true}}</li>
+                  {{/each}}
+                </ul>
+              </mp-popover-content>
+            </mp-popover>
+            
+          {{/if}}
+
+        </bs-alert>
+      </template>
+    </semantic-query>
+  {{/if}}
+</template-fragment>
