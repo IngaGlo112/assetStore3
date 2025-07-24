@@ -14,7 +14,7 @@
   dct:creator "admin";
   dct:modified "2025-07-24T09:32:03.094Z"^^xsd:dateTime;
   dct:title "TestNewBrnahco"@en;
-  <http://purl.org/ontology/bibo/status> <http://purl.org/spar/pso/draft>;
+  <http://purl.org/ontology/bibo/status> <http://purl.org/spar/pso/published>;
   vaem:namespace <https://ontologies.metaphacts.com/testnewbrnahco/>;
   rdfs:label "TestNewBrnahco"@en;
   owl:versionInfo "0.1" .
